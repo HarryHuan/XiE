@@ -1,0 +1,39 @@
+# ── 构建输出 ────────────────────────────────────
+build/
+bin/
+lib/
+*.obj
+*.exe
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# ── IDE / 编辑器 ────────────────────────────────
+.vs/
+*.sln
+*.suo
+*.vcxproj.user
+*.vcxproj.filters
+*.opensdf
+*.opendb
+Debug/
+Release/
+x64/
+Win32/
+
+# ── Reasonix 元数据 ─────────────────────────────
+.reasonix/
+reasonix.toml
+
+# ── 系统文件 ────────────────────────────────────
+*.log
+Thumbs.db
+.DS_Store
+
+# ── CMake ───────────────────────────────────────
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.ninja
