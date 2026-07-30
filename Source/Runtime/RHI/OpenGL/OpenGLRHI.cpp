@@ -53,7 +53,7 @@ bool OpenGLPlatform_CreateWindow(
     int32 Width,
     int32 Height)
 {
-    // 1. 注册窗口类
+    // 1. 注册窗口类（ANSI 版本，标题用纯英文 ASCII）
     HINSTANCE hInstance = GetModuleHandle(nullptr);
     WNDCLASSEXA wc = {};
     wc.cbSize        = sizeof(WNDCLASSEXA);

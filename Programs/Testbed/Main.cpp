@@ -67,7 +67,7 @@ int main()
     void* hDC       = nullptr;
     void* glContext = nullptr;
 
-    if (!OpenGLPlatform_CreateWindow(hWnd, hDC, glContext, "羲 (Xi) — Phase 0: Triangle", 800, 600))
+    if (!OpenGLPlatform_CreateWindow(hWnd, hDC, glContext, "Xi Engine - Phase 0: Triangle", 800, 600))
     {
         XI_LOG_ERROR("Failed to create window");
         return -1;
