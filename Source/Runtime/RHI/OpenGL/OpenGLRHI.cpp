@@ -462,7 +462,7 @@ void YaoOpenGLRHI::Clear(const YaoClearColor& Color)
 
 void YaoOpenGLRHI::SetVertexBuffer(YaoRHIBuffer* Buffer, const YaoArray<YaoVertexElement>& Layout)
 {
-    YaoOpenGLBuffer* GLBuffer = static_cast<YaoOpenGLBuffer*>(Buffer);
+    YaoOpenGLBuffer* GLBuffer = RHICast<YaoOpenGLBuffer>(Buffer);
     if (!GLBuffer) return;
 
     g_GL.glBindVertexArray(m_CurrentVAO);
@@ -503,7 +503,7 @@ void YaoOpenGLRHI::SetVertexBuffer(YaoRHIBuffer* Buffer, const YaoArray<YaoVerte
 
 void YaoOpenGLRHI::SetIndexBuffer(YaoRHIBuffer* Buffer)
 {
-    YaoOpenGLBuffer* GLBuffer = static_cast<YaoOpenGLBuffer*>(Buffer);
+    YaoOpenGLBuffer* GLBuffer = RHICast<YaoOpenGLBuffer>(Buffer);
     if (!GLBuffer) return;
 
     g_GL.glBindVertexArray(m_CurrentVAO);

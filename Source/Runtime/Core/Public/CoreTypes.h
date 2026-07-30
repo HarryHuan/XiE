@@ -43,7 +43,7 @@ using uchar  = unsigned char;
 
 // ── 断言宏 ──────────────────────────────────────
 #define xiCheck(Expr)        assert(Expr)
-#define xiCheckf(Expr, ...)  assert((Expr) && false)  // 带格式化消息（简化版直接用 assert）
+#define xiCheckf(Expr, Msg, ...)  assert(Expr)  // 简化版：消息暂未实现
 
 // ── 常用常量 ────────────────────────────────────
 constexpr float  XI_PI     = 3.14159265358979323846f;

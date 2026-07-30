@@ -30,6 +30,9 @@ class YaoRHIBuffer
 public:
     virtual ~YaoRHIBuffer() = default;
 
+    /// @brief 获取所属 RHI 后端类型（用于下行转换前的安全检查，仿 UE）
+    virtual YaoRHIType GetRHIType() const = 0;
+
     /// @brief 更新缓冲区数据（用于动态缓冲区）
     virtual void SetData(const void* Data, int32 SizeInBytes) = 0;
 
@@ -42,6 +45,9 @@ class YaoRHIShader
 {
 public:
     virtual ~YaoRHIShader() = default;
+
+    /// @brief 获取所属 RHI 后端类型
+    virtual YaoRHIType GetRHIType() const = 0;
 
     /// @brief 绑定此着色器程序（使后续绘制调用使用它）
     virtual void Bind() = 0;
@@ -68,6 +74,9 @@ class YaoRHIDevice
 {
 public:
     virtual ~YaoRHIDevice() = default;
+
+    /// @brief 获取 RHI 后端类型
+    virtual YaoRHIType GetRHIType() const = 0;
 
     // ── 资源创建 ─────────────────────────────────
     /// @brief 创建顶点缓冲区
@@ -101,6 +110,22 @@ public:
     /// @brief 交换前后缓冲区（将渲染结果呈现到屏幕）
     virtual void Present() = 0;
 };
+
+// ── 安全下行转换辅助（仿 UE RHI 类型检查） ──────
+
+/// @brief 将 RHI 基类指针安全转换为派生类指针
+/// 每个派生类须定义 `static constexpr YaoRHIType k_RHIType`
+/// 用法：RHICast<YaoOpenGLBuffer>(buffer)
+/// 类型不匹配时触发断言失败
+template<typename DstType, typename SrcType>
+inline DstType* RHICast(SrcType* Ptr)
+{
+    if (!Ptr) return nullptr;
+    DstType* Result = static_cast<DstType*>(Ptr);
+    xiCheckf(Result->GetRHIType() == DstType::k_RHIType,
+        "RHI cast failed: expected backend type does not match");
+    return Result;
+}
 
 // ── 工厂函数 ────────────────────────────────────
 /// @brief 根据类型创建对应的 RHI 设备实例

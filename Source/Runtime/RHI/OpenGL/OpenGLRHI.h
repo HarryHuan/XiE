@@ -132,9 +132,12 @@ bool OpenGLPlatform_PumpMessages();
 class YaoOpenGLBuffer : public YaoRHIBuffer
 {
 public:
+    static constexpr YaoRHIType k_RHIType = YaoRHIType::OpenGL;
+
     YaoOpenGLBuffer(const YaoBufferDesc& Desc, GLenum InTarget);
     virtual ~YaoOpenGLBuffer();
 
+    virtual YaoRHIType GetRHIType() const override { return k_RHIType; }
     virtual void  SetData(const void* Data, int32 SizeInBytes) override;
     virtual int32 GetSize() const override { return m_Size; }
 
@@ -151,9 +154,12 @@ private:
 class YaoOpenGLShader : public YaoRHIShader
 {
 public:
+    static constexpr YaoRHIType k_RHIType = YaoRHIType::OpenGL;
+
     YaoOpenGLShader(const char* VertexSource, const char* PixelSource);
     virtual ~YaoOpenGLShader();
 
+    virtual YaoRHIType GetRHIType() const override { return k_RHIType; }
     virtual void Bind() override;
     virtual void SetUniform1f(const char* Name, float Value) override;
     virtual void SetUniformMat4(const char* Name, const float* Matrix) override;
@@ -171,8 +177,12 @@ private:
 class YaoOpenGLRHI : public YaoRHIDevice
 {
 public:
+    static constexpr YaoRHIType k_RHIType = YaoRHIType::OpenGL;
+
     YaoOpenGLRHI(void* InHwnd, void* InHDC, void* InGLContext, int32 InWidth, int32 InHeight);
     virtual ~YaoOpenGLRHI();
+
+    virtual YaoRHIType GetRHIType() const override { return k_RHIType; }
 
     // ── 资源创建 ─────────────────────────────────
     virtual YaoSharedPtr<YaoRHIBuffer> CreateVertexBuffer(const YaoBufferDesc& Desc) override;
