@@ -1,10 +1,13 @@
-// CoreTypes.h — 羲引擎基础类型定义
+// CoreTypes.h — 羲引擎基础类型定义（Yao 层 / 羲爻）
 // 仿 UE 命名规范，定义引擎内统一的整数、浮点、字符类型别名
 #pragma once
 
 #include <cstdint>   // int32_t, uint32_t 等
 #include <cstddef>   // size_t, ptrdiff_t
 #include <cassert>   // assert
+
+namespace Xi::Yao
+{
 
 // ── 平台检测 ────────────────────────────────────
 #if defined(_WIN32) || defined(_WIN64)
@@ -72,3 +75,5 @@ constexpr float  XI_RAD2DEG = 180.0f / XI_PI;
 // ── 前向声明宏（减少 include 依赖） ──────────────
 #define XI_FORWARD_DECLARE_CLASS(ClassName)  class ClassName
 #define XI_FORWARD_DECLARE_STRUCT(StructName) struct StructName
+
+} // namespace Xi::Yao

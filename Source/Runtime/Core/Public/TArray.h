@@ -1,15 +1,18 @@
-// TArray.h — 羲引擎动态数组容器
-// 仿 UE TArray，提供类似 std::vector 但 API 命名更符合 UE 风格的动态数组
+// YaoArray — 羲引擎动态数组容器（Yao 层 / 羲爻）
+// 仿 UE TArray，Yao 前缀表示底层内核层类型
 #pragma once
 
 #include "CoreTypes.h"
 #include <utility>    // std::move, std::forward
 #include <initializer_list>
 
+namespace Xi::Yao
+{
+
 /// @brief 动态数组模板 — 引擎最常用的容器类型
 /// @tparam T 元素类型（必须可移动 / 可拷贝）
 template<typename T>
-class TArray
+class YaoArray
 {
 public:
     // ── 类型别名 ────────────────────────────────
@@ -18,43 +21,45 @@ public:
     using ConstIterator  = const T*;
 
     // ── 构造 / 析构 ─────────────────────────────
-    TArray() = default;
+    /// @brief 默认构造（空数组）
+    YaoArray() = default;
 
-    /// @brief 用 initializer_list 初始化（支持 TArray<int> arr = {1,2,3}）
-    TArray(std::initializer_list<T> InitList)
+    /// @brief 用 initializer_list 初始化（支持 YaoArray<int> arr = {1,2,3}）
+    YaoArray(std::initializer_list<T> InitList)
     {
         ResizeToFit(static_cast<int32>(InitList.size()));
         for (const T& Item : InitList)
         {
-            new (Data + Count) T(Item);  // placement new
-            ++Count;
+            new (m_Data + m_Count) T(Item);  // placement new
+            ++m_Count;
         }
     }
 
     /// @brief 预分配 count 个默认元素
-    explicit TArray(int32 InCount)
+    explicit YaoArray(int32 InCount)
     {
         ResizeToFit(InCount);
         for (int32 i = 0; i < InCount; ++i)
         {
-            new (Data + i) T();
+            new (m_Data + i) T();
         }
-        Count = InCount;
+        m_Count = InCount;
     }
 
-    ~TArray()
+    /// @brief 析构所有元素并释放内存
+    ~YaoArray()
     {
         Clear();
         FreeData();
     }
 
     // ── 拷贝 ─────────────────────────────────────
-    TArray(const TArray& Other)
+    YaoArray(const YaoArray& Other)
     {
         CopyFrom(Other);
     }
 
-    TArray& operator=(const TArray& Other)
+    YaoArray& operator=(const YaoArray& Other)
     {
         if (this != &Other)
         {
@@ -66,164 +71,162 @@ public:
     }
 
     // ── 移动 ─────────────────────────────────────
-    TArray(TArray&& Other) noexcept
-        : Data(Other.Data), Count(Other.Count), Capacity(Other.Capacity)
+    YaoArray(YaoArray&& Other) noexcept
+        : m_Data(Other.m_Data), m_Count(Other.m_Count), m_Capacity(Other.m_Capacity)
     {
-        Other.Data     = nullptr;
-        Other.Count    = 0;
-        Other.Capacity = 0;
+        Other.m_Data     = nullptr;
+        Other.m_Count    = 0;
+        Other.m_Capacity = 0;
     }
 
-    TArray& operator=(TArray&& Other) noexcept
+    YaoArray& operator=(YaoArray&& Other) noexcept
     {
         if (this != &Other)
         {
             Clear();
             FreeData();
-            Data     = Other.Data;
-            Count    = Other.Count;
-            Capacity = Other.Capacity;
-            Other.Data     = nullptr;
-            Other.Count    = 0;
-            Other.Capacity = 0;
+            m_Data     = Other.m_Data;
+            m_Count    = Other.m_Count;
+            m_Capacity = Other.m_Capacity;
+            Other.m_Data     = nullptr;
+            Other.m_Count    = 0;
+            Other.m_Capacity = 0;
         }
         return *this;
     }
 
     // ── 元素访问 ─────────────────────────────────
+    /// @brief 下标访问（带边界检查）
     T& operator[](int32 Index)
     {
-        xiCheck(Index >= 0 && Index < Count);
-        return Data[Index];
+        xiCheck(Index >= 0 && Index < m_Count);
+        return m_Data[Index];
     }
 
     const T& operator[](int32 Index) const
     {
-        xiCheck(Index >= 0 && Index < Count);
-        return Data[Index];
+        xiCheck(Index >= 0 && Index < m_Count);
+        return m_Data[Index];
     }
 
     /// @brief 获取第一个元素
     T& First()
     {
-        xiCheck(Count > 0);
-        return Data[0];
+        xiCheck(m_Count > 0);
+        return m_Data[0];
     }
 
     const T& First() const
     {
-        xiCheck(Count > 0);
-        return Data[0];
+        xiCheck(m_Count > 0);
+        return m_Data[0];
     }
 
     /// @brief 获取最后一个元素
     T& Last()
     {
-        xiCheck(Count > 0);
-        return Data[Count - 1];
+        xiCheck(m_Count > 0);
+        return m_Data[m_Count - 1];
     }
 
     const T& Last() const
     {
-        xiCheck(Count > 0);
-        return Data[Count - 1];
+        xiCheck(m_Count > 0);
+        return m_Data[m_Count - 1];
     }
 
     /// @brief 获取原始数据指针
-    T* GetData()             { return Data; }
-    const T* GetData() const { return Data; }
+    T* GetData()             { return m_Data; }
+    const T* GetData() const { return m_Data; }
 
     // ── 容量查询 ─────────────────────────────────
     /// @brief 当前元素数量
-    int32 Num() const { return Count; }
+    int32 Num() const { return m_Count; }
 
     /// @brief 是否为空
-    bool  IsEmpty() const { return Count == 0; }
+    bool  IsEmpty() const { return m_Count == 0; }
 
     /// @brief 当前分配的容量（元素个数）
-    int32 GetCapacity() const { return Capacity; }
-
-    /// @brief 最大可能元素数
-    int32 Max() const { return INT32_MAX; }
+    int32 GetCapacity() const { return m_Capacity; }
 
     // ── 修改操作 ─────────────────────────────────
-    /// @brief 尾部添加元素（拷贝版本）
+    /// @brief 尾部添加元素（拷贝版本），返回新增元素引用
     T& Add(const T& Item)
     {
-        EnsureCapacity(Count + 1);
-        new (Data + Count) T(Item);
-        ++Count;
-        return Data[Count - 1];
+        EnsureCapacity(m_Count + 1);
+        new (m_Data + m_Count) T(Item);
+        ++m_Count;
+        return m_Data[m_Count - 1];
     }
 
-    /// @brief 尾部添加元素（移动版本）
+    /// @brief 尾部添加元素（移动版本），返回新增元素引用
     T& Add(T&& Item)
     {
-        EnsureCapacity(Count + 1);
-        new (Data + Count) T(std::move(Item));
-        ++Count;
-        return Data[Count - 1];
+        EnsureCapacity(m_Count + 1);
+        new (m_Data + m_Count) T(std::move(Item));
+        ++m_Count;
+        return m_Data[m_Count - 1];
     }
 
     /// @brief 原地构造元素，返回引用
     template<typename... Args>
     T& Emplace(Args&&... args)
     {
-        EnsureCapacity(Count + 1);
-        new (Data + Count) T(std::forward<Args>(args)...);
-        ++Count;
-        return Data[Count - 1];
+        EnsureCapacity(m_Count + 1);
+        new (m_Data + m_Count) T(std::forward<Args>(args)...);
+        ++m_Count;
+        return m_Data[m_Count - 1];
     }
 
     /// @brief 移除末尾元素
     void Pop()
     {
-        xiCheck(Count > 0);
-        --Count;
-        Data[Count].~T();
+        xiCheck(m_Count > 0);
+        --m_Count;
+        m_Data[m_Count].~T();
     }
 
     /// @brief 按索引移除元素（保持顺序，O(n)）
     void RemoveAt(int32 Index)
     {
-        xiCheck(Index >= 0 && Index < Count);
-        Data[Index].~T();
+        xiCheck(Index >= 0 && Index < m_Count);
+        m_Data[Index].~T();
         // 后续元素前移
-        for (int32 i = Index; i < Count - 1; ++i)
+        for (int32 i = Index; i < m_Count - 1; ++i)
         {
-            new (Data + i) T(std::move(Data[i + 1]));
-            Data[i + 1].~T();
+            new (m_Data + i) T(std::move(m_Data[i + 1]));
+            m_Data[i + 1].~T();
         }
-        --Count;
+        --m_Count;
     }
 
     /// @brief 按索引移除元素（不保持顺序，O(1)）
     void RemoveAtSwap(int32 Index)
     {
-        xiCheck(Index >= 0 && Index < Count);
-        if (Index != Count - 1)
+        xiCheck(Index >= 0 && Index < m_Count);
+        if (Index != m_Count - 1)
         {
-            Data[Index].~T();
-            new (Data + Index) T(std::move(Data[Count - 1]));
+            m_Data[Index].~T();
+            new (m_Data + Index) T(std::move(m_Data[m_Count - 1]));
         }
-        Data[Count - 1].~T();
-        --Count;
+        m_Data[m_Count - 1].~T();
+        --m_Count;
     }
 
-    /// @brief 清空所有元素（保持分配的容量）
+    /// @brief 清空所有元素（保留已分配容量）
     void Clear()
     {
-        for (int32 i = 0; i < Count; ++i)
+        for (int32 i = 0; i < m_Count; ++i)
         {
-            Data[i].~T();
+            m_Data[i].~T();
         }
-        Count = 0;
+        m_Count = 0;
     }
 
     /// @brief 预分配容量
     void Reserve(int32 NewCapacity)
     {
-        if (NewCapacity > Capacity)
+        if (NewCapacity > m_Capacity)
         {
             Reallocate(NewCapacity);
         }
@@ -232,25 +235,25 @@ public:
     /// @brief 回收多余容量，使 Capacity == Count
     void Shrink()
     {
-        if (Count < Capacity)
+        if (m_Count < m_Capacity)
         {
-            Reallocate(Count);
+            Reallocate(m_Count);
         }
     }
 
     // ── 迭代器 ───────────────────────────────────
-    Iterator       begin()       { return Data; }
-    Iterator       end()         { return Data + Count; }
-    ConstIterator  begin() const { return Data; }
-    ConstIterator  end()   const { return Data + Count; }
+    Iterator       begin()       { return m_Data; }
+    Iterator       end()         { return m_Data + m_Count; }
+    ConstIterator  begin() const { return m_Data; }
+    ConstIterator  end()   const { return m_Data + m_Count; }
 
-    // ── 查找 —————————————————————————————————————
+    // ── 查找 ─────────────────────────────────────
     /// @brief 线性查找元素，返回索引；未找到返回 -1
     int32 Find(const T& Item) const
     {
-        for (int32 i = 0; i < Count; ++i)
+        for (int32 i = 0; i < m_Count; ++i)
         {
-            if (Data[i] == Item)
+            if (m_Data[i] == Item)
             {
                 return i;
             }
@@ -266,13 +269,13 @@ public:
 
 private:
     // ── 内部辅助方法 ─────────────────────────────
-    /// @brief 确保有足够容量容纳 NewCount 个元素
+    /// @brief 确保有足够容量容纳 Needed 个元素
     void EnsureCapacity(int32 Needed)
     {
-        if (Needed > Capacity)
+        if (Needed > m_Capacity)
         {
             // 扩容策略：至少翻倍，满足需求
-            int32 NewCapacity = (Capacity > 0) ? Capacity * 2 : 4;
+            int32 NewCapacity = (m_Capacity > 0) ? m_Capacity * 2 : 4;
             if (NewCapacity < Needed)
             {
                 NewCapacity = Needed;
@@ -284,13 +287,13 @@ private:
     /// @brief 调整容量以恰好容纳 Needed 个元素
     void ResizeToFit(int32 Needed)
     {
-        if (Needed > Capacity || Needed < Capacity / 2)
+        if (Needed > m_Capacity || Needed < m_Capacity / 2)
         {
             Reallocate(Needed);
         }
     }
 
-    /// @brief 重新分配内存，移动旧元素
+    /// @brief 重新分配内存，移动旧元素到新内存
     void Reallocate(int32 NewCapacity)
     {
         if (NewCapacity == 0)
@@ -303,48 +306,50 @@ private:
         T* NewData = static_cast<T*>(::operator new(NewCapacity * sizeof(T)));
 
         // 移动已有元素到新内存
-        int32 ElementsToMove = (Count < NewCapacity) ? Count : NewCapacity;
+        int32 ElementsToMove = (m_Count < NewCapacity) ? m_Count : NewCapacity;
         for (int32 i = 0; i < ElementsToMove; ++i)
         {
-            new (NewData + i) T(std::move(Data[i]));
+            new (NewData + i) T(std::move(m_Data[i]));
         }
 
         // 析构旧元素并释放旧内存
-        for (int32 i = 0; i < Count; ++i)
+        for (int32 i = 0; i < m_Count; ++i)
         {
-            Data[i].~T();
+            m_Data[i].~T();
         }
-        ::operator delete(Data);
+        ::operator delete(m_Data);
 
-        Data     = NewData;
-        Count    = ElementsToMove;
-        Capacity = NewCapacity;
+        m_Data     = NewData;
+        m_Count    = ElementsToMove;
+        m_Capacity = NewCapacity;
     }
 
     /// @brief 释放所有内存
     void FreeData()
     {
-        ::operator delete(Data);
-        Data     = nullptr;
-        Capacity = 0;
+        ::operator delete(m_Data);
+        m_Data     = nullptr;
+        m_Capacity = 0;
     }
 
-    /// @brief 从另一个 TArray 拷贝
-    void CopyFrom(const TArray& Other)
+    /// @brief 从另一个 YaoArray 拷贝
+    void CopyFrom(const YaoArray& Other)
     {
-        Count    = 0;
-        Capacity = 0;
-        Data     = nullptr;
-        EnsureCapacity(Other.Count);
-        for (int32 i = 0; i < Other.Count; ++i)
+        m_Count    = 0;
+        m_Capacity = 0;
+        m_Data     = nullptr;
+        EnsureCapacity(Other.m_Count);
+        for (int32 i = 0; i < Other.m_Count; ++i)
         {
-            new (Data + i) T(Other.Data[i]);
+            new (m_Data + i) T(Other.m_Data[i]);
         }
-        Count = Other.Count;
+        m_Count = Other.m_Count;
     }
 
     // ── 成员变量 ─────────────────────────────────
-    T*    Data     = nullptr;  // 元素内存块
-    int32 Count    = 0;       // 当前元素数
-    int32 Capacity = 0;       // 已分配容量
+    T*    m_Data     = nullptr;  // 元素内存块
+    int32 m_Count    = 0;       // 当前元素数
+    int32 m_Capacity = 0;       // 已分配容量
 };
+
+} // namespace Xi::Yao

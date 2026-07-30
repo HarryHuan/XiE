@@ -1,4 +1,4 @@
-// CoreModule.cpp — Core 模块初始化
+// CoreModule.cpp — Core 模块初始化（Yao 层 / 羲爻）
 // 目前仅用于触发编译和提供 DEFINE_LOG_CATEGORY
 #include "LogMacros.h"
 

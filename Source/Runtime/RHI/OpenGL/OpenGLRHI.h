@@ -1,20 +1,24 @@
-// OpenGLRHI.h — OpenGL RHI 后端声明
-// 实现 IRHIDevice / IRHIBuffer / IRHIShader 的 OpenGL 版本
+// OpenGLRHI.h — OpenGL RHI 后端声明（Yao 层 / 羲爻）
+// 实现 YaoRHIDevice / YaoRHIBuffer / YaoRHIShader 的 OpenGL 版本
 #pragma once
 
 #include "RHIDevice.h"
 #include "CoreTypes.h"
+#include "TArray.h"
+
+namespace Xi::Yao
+{
 
 // ── OpenGL 类型别名（避免直接 include OpenGL 头） ──
-using GLuint   = unsigned int;
-using GLint    = int;
-using GLenum   = unsigned int;
-using GLbitfield = unsigned int;
-using GLsizei  = int;
-using GLsizeiptr = int64;       // 用于缓冲区大小
-using GLchar   = char;
-using GLboolean = unsigned char;
-using GLfloat  = float;
+using GLuint      = unsigned int;
+using GLint       = int;
+using GLenum      = unsigned int;
+using GLbitfield  = unsigned int;
+using GLsizei     = int;
+using GLsizeiptr  = int64;        // 用于缓冲区大小
+using GLchar      = char;
+using GLboolean   = unsigned char;
+using GLfloat     = float;
 
 // ── OpenGL 常量 ─────────────────────────────────
 constexpr GLenum GL_ARRAY_BUFFER          = 0x8892;
@@ -65,8 +69,7 @@ using PFN_glClear               = void  (*)(GLenum);
 using PFN_glDrawElements        = void  (*)(GLenum, GLsizei, GLenum, const void*);
 
 /// @brief OpenGL 函数表 — 所有动态加载的 OpenGL 函数指针
-/// wglGetProcAddress 仅返回核心函数，传统函数用 wgl 扩展获取
-struct FOpenGLFuncs
+struct YaoGLFuncs
 {
     PFN_glGenBuffers           glGenBuffers          = nullptr;
     PFN_glBindBuffer           glBindBuffer          = nullptr;
@@ -99,18 +102,12 @@ struct FOpenGLFuncs
     PFN_glDrawElements         glDrawElements        = nullptr;
 };
 
-/// @brief 全局 OpenGL 函数表
-extern FOpenGLFuncs GL;
+/// @brief 全局 OpenGL 函数表（g_ 前缀 = 全局变量）
+extern YaoGLFuncs g_GL;
 
 // ── OpenGL 平台层（Win32 窗口 + wgl 上下文） ─────────
 
 /// @brief 创建 Win32 窗口并初始化 OpenGL 渲染上下文
-/// @param OutHwnd     [out] 返回创建的窗口句柄
-/// @param OutHDC      [out] 返回设备上下文句柄
-/// @param OutGLContext [out] 返回 OpenGL 渲染上下文
-/// @param Title       窗口标题
-/// @param Width       窗口宽度
-/// @param Height      窗口高度
 /// @return 是否成功
 bool OpenGLPlatform_CreateWindow(
     void*& OutHwnd,
@@ -124,10 +121,7 @@ bool OpenGLPlatform_CreateWindow(
 bool OpenGLPlatform_LoadFunctions();
 
 /// @brief 销毁窗口和 OpenGL 上下文
-void OpenGLPlatform_DestroyWindow(
-    void* Hwnd,
-    void* HDC,
-    void* GLContext);
+void OpenGLPlatform_DestroyWindow(void* InHwnd, void* InHDC, void* InGLContext);
 
 /// @brief 处理 Windows 消息泵（返回 false 表示窗口已关闭）
 bool OpenGLPlatform_PumpMessages();
@@ -135,63 +129,63 @@ bool OpenGLPlatform_PumpMessages();
 // ── OpenGL RHI 实现类 ──────────────────────────
 
 /// @brief OpenGL 顶点/索引缓冲区实现
-class FOpenGLBuffer : public IRHIBuffer
+class YaoOpenGLBuffer : public YaoRHIBuffer
 {
 public:
-    FOpenGLBuffer(const FBufferDesc& Desc, GLenum Target);
-    virtual ~FOpenGLBuffer();
+    YaoOpenGLBuffer(const YaoBufferDesc& Desc, GLenum InTarget);
+    virtual ~YaoOpenGLBuffer();
 
     virtual void  SetData(const void* Data, int32 SizeInBytes) override;
-    virtual int32 GetSize() const override { return Size; }
+    virtual int32 GetSize() const override { return m_Size; }
 
-    GLuint GetGLBuffer() const { return BufferID; }
-    GLenum GetTarget()   const { return Target; }
+    GLuint GetGLBuffer() const { return m_BufferID; }
+    GLenum GetTarget()   const { return m_Target; }
 
 private:
-    GLuint BufferID = 0;     // OpenGL 缓冲区对象 ID
-    GLenum Target;            // GL_ARRAY_BUFFER 或 GL_ELEMENT_ARRAY_BUFFER
-    int32  Size = 0;         // 缓冲区字节大小
+    GLuint m_BufferID = 0;     // OpenGL 缓冲区对象 ID
+    GLenum m_Target;            // GL_ARRAY_BUFFER 或 GL_ELEMENT_ARRAY_BUFFER
+    int32  m_Size = 0;         // 缓冲区字节大小
 };
 
 /// @brief OpenGL Shader 程序实现
-class FOpenGLShader : public IRHIShader
+class YaoOpenGLShader : public YaoRHIShader
 {
 public:
-    FOpenGLShader(const char* VertexSource, const char* PixelSource);
-    virtual ~FOpenGLShader();
+    YaoOpenGLShader(const char* VertexSource, const char* PixelSource);
+    virtual ~YaoOpenGLShader();
 
     virtual void Bind() override;
     virtual void SetUniform1f(const char* Name, float Value) override;
     virtual void SetUniformMat4(const char* Name, const float* Matrix) override;
 
-    GLuint GetProgramID() const { return ProgramID; }
+    GLuint GetProgramID() const { return m_ProgramID; }
 
 private:
     /// @brief 编译单个着色器阶段
     GLuint CompileStage(GLenum StageType, const char* Source);
 
-    GLuint ProgramID = 0;    // OpenGL 着色器程序 ID
+    GLuint m_ProgramID = 0;    // OpenGL 着色器程序 ID
 };
 
 /// @brief OpenGL RHI 设备实现
-class FOpenGLRHI : public IRHIDevice
+class YaoOpenGLRHI : public YaoRHIDevice
 {
 public:
-    FOpenGLRHI(void* InHwnd, void* InHDC, void* InGLContext, int32 InWidth, int32 InHeight);
-    virtual ~FOpenGLRHI();
+    YaoOpenGLRHI(void* InHwnd, void* InHDC, void* InGLContext, int32 InWidth, int32 InHeight);
+    virtual ~YaoOpenGLRHI();
 
     // ── 资源创建 ─────────────────────────────────
-    virtual TSharedPtr<IRHIBuffer> CreateVertexBuffer(const FBufferDesc& Desc) override;
-    virtual TSharedPtr<IRHIBuffer> CreateIndexBuffer(const FBufferDesc& Desc) override;
-    virtual TSharedPtr<IRHIShader> CreateShader(
+    virtual YaoSharedPtr<YaoRHIBuffer> CreateVertexBuffer(const YaoBufferDesc& Desc) override;
+    virtual YaoSharedPtr<YaoRHIBuffer> CreateIndexBuffer(const YaoBufferDesc& Desc) override;
+    virtual YaoSharedPtr<YaoRHIShader> CreateShader(
         const char* VertexSource,
         const char* PixelSource) override;
 
     // ── 渲染命令 ─────────────────────────────────
-    virtual void SetViewport(const FViewport& Viewport) override;
-    virtual void Clear(const FClearColor& Color) override;
-    virtual void SetVertexBuffer(IRHIBuffer* Buffer, const TArray<FVertexElement>& Layout) override;
-    virtual void SetIndexBuffer(IRHIBuffer* Buffer) override;
+    virtual void SetViewport(const YaoViewport& Viewport) override;
+    virtual void Clear(const YaoClearColor& Color) override;
+    virtual void SetVertexBuffer(YaoRHIBuffer* Buffer, const YaoArray<YaoVertexElement>& Layout) override;
+    virtual void SetIndexBuffer(YaoRHIBuffer* Buffer) override;
     virtual void DrawIndexed(int32 IndexCount, int32 StartIndex = 0) override;
 
     // ── 帧管理 ───────────────────────────────────
@@ -201,15 +195,17 @@ public:
     bool IsWindowOpen() const;
 
 private:
-    void* WindowHandle   = nullptr;   // Win32 窗口句柄 (HWND)
-    void* DeviceContext  = nullptr;   // 设备上下文 (HDC)
-    void* GLRenderContext = nullptr;  // OpenGL 渲染上下文 (HGLRC)
-    int32 Width      = 0;
-    int32 Height     = 0;
+    void* m_WindowHandle    = nullptr;   // Win32 窗口句柄 (HWND)
+    void* m_DeviceContext   = nullptr;   // 设备上下文 (HDC)
+    void* m_GLRenderContext = nullptr;   // OpenGL 渲染上下文 (HGLRC)
+    int32 m_Width           = 0;
+    int32 m_Height          = 0;
 
     // 当前绑定的状态
-    GLuint CurrentVAO          = 0;   // 当前顶点数组对象
-    GLuint CurrentVertexBuffer = 0;
-    GLuint CurrentIndexBuffer  = 0;
-    int32  CurrentStride       = 0;   // 当前顶点步长
+    GLuint m_CurrentVAO          = 0;   // 当前顶点数组对象
+    GLuint m_CurrentVertexBuffer = 0;
+    GLuint m_CurrentIndexBuffer  = 0;
+    int32  m_CurrentStride       = 0;   // 当前顶点步长
 };
+
+} // namespace Xi::Yao

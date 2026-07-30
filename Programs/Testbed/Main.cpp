@@ -1,8 +1,10 @@
 // Testbed Main.cpp — 阶段 0 验证：通过 RHI → OpenGL 绘制三角形
-// 验证目标：用 RHI 接口创建缓冲区、着色器，绘制一个纯色三角形到窗口
+// 验证目标：用 RHI 接口创建缓冲区、着色器，绘制一个彩色三角形到窗口
 #include "Core.h"
 #include "OpenGLRHI.h"
 #include "LogMacros.h"
+
+using namespace Xi::Yao;
 
 DEFINE_LOG_CATEGORY(LogTestbed, Log);
 
@@ -45,7 +47,7 @@ void main()
 }
 )";
 
-// ── 正交投影矩阵（简单的单位矩阵，把顶点直接映射到 NDC） ──
+// ── 正交投影矩阵（单位矩阵，顶点直接映射到 NDC） ──
 static float OrthoProjection[16] = {
     1.0f, 0.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f, 0.0f,
@@ -78,11 +80,10 @@ int main()
         return -1;
     }
 
-    // 3. 创建 RHI 设备
-    FOpenGLRHI RHI(hWnd, hDC, glContext, 800, 600);
+    // 3. 创建 RHI 设备（Yao 层）
+    YaoOpenGLRHI RHI(hWnd, hDC, glContext, 800, 600);
 
     // 4. 定义三角形顶点（位置 + 颜色）
-    // 三个顶点形成三角形，覆盖大部分屏幕
     FVertex Vertices[] = {
         //   X      Y      Z      R      G      B
         {  0.0f,  0.8f, 0.0f,  1.0f, 0.0f, 0.0f },  // 顶部  — 红色
@@ -94,10 +95,10 @@ int main()
     uint8 Indices[] = { 0, 1, 2 };
 
     // 6. 创建顶点缓冲区（通过 RHI 接口）
-    FBufferDesc VBDesc;
-    VBDesc.SizeInBytes = sizeof(Vertices);
-    VBDesc.InitialData = Vertices;
-    TSharedPtr<IRHIBuffer> VertexBuffer = RHI.CreateVertexBuffer(VBDesc);
+    YaoBufferDesc VBDesc;
+    VBDesc.m_SizeInBytes = sizeof(Vertices);
+    VBDesc.m_InitialData = Vertices;
+    YaoSharedPtr<YaoRHIBuffer> VertexBuffer = RHI.CreateVertexBuffer(VBDesc);
     if (!VertexBuffer.IsValid())
     {
         XI_LOG_ERROR("Failed to create vertex buffer");
@@ -105,10 +106,10 @@ int main()
     }
 
     // 7. 创建索引缓冲区（通过 RHI 接口）
-    FBufferDesc IBDesc;
-    IBDesc.SizeInBytes = sizeof(Indices);
-    IBDesc.InitialData = Indices;
-    TSharedPtr<IRHIBuffer> IndexBuffer = RHI.CreateIndexBuffer(IBDesc);
+    YaoBufferDesc IBDesc;
+    IBDesc.m_SizeInBytes = sizeof(Indices);
+    IBDesc.m_InitialData = Indices;
+    YaoSharedPtr<YaoRHIBuffer> IndexBuffer = RHI.CreateIndexBuffer(IBDesc);
     if (!IndexBuffer.IsValid())
     {
         XI_LOG_ERROR("Failed to create index buffer");
@@ -116,7 +117,7 @@ int main()
     }
 
     // 8. 编译着色器（通过 RHI 接口）
-    TSharedPtr<IRHIShader> Shader = RHI.CreateShader(VertexShaderGLSL, PixelShaderGLSL);
+    YaoSharedPtr<YaoRHIShader> Shader = RHI.CreateShader(VertexShaderGLSL, PixelShaderGLSL);
     if (!Shader.IsValid())
     {
         XI_LOG_ERROR("Failed to create shader");
@@ -124,19 +125,19 @@ int main()
     }
 
     // 9. 定义顶点布局
-    TArray<FVertexElement> VertexLayout;
-    FVertexElement PosElem;
-    PosElem.Name   = "POSITION";
-    PosElem.Type   = EVertexElementType::Float3;
-    PosElem.Offset = 0;
-    PosElem.Stride = sizeof(FVertex);
+    YaoArray<YaoVertexElement> VertexLayout;
+    YaoVertexElement PosElem;
+    PosElem.m_Name   = "POSITION";
+    PosElem.m_Type   = YaoVertexElementType::Float3;
+    PosElem.m_Offset = 0;
+    PosElem.m_Stride = sizeof(FVertex);
     VertexLayout.Add(PosElem);
 
-    FVertexElement ColElem;
-    ColElem.Name   = "COLOR";
-    ColElem.Type   = EVertexElementType::Float3;
-    ColElem.Offset = sizeof(float) * 3;  // 跳过位置 (X,Y,Z)
-    ColElem.Stride = sizeof(FVertex);
+    YaoVertexElement ColElem;
+    ColElem.m_Name   = "COLOR";
+    ColElem.m_Type   = YaoVertexElementType::Float3;
+    ColElem.m_Offset = sizeof(float) * 3;  // 跳过位置 (X,Y,Z)
+    ColElem.m_Stride = sizeof(FVertex);
     VertexLayout.Add(ColElem);
 
     // 10. 主渲染循环
@@ -144,17 +145,17 @@ int main()
     while (RHI.IsWindowOpen() && OpenGLPlatform_PumpMessages())
     {
         // 清屏（深灰色背景）
-        FClearColor ClearColor;
-        ClearColor.R = 0.1f;
-        ClearColor.G = 0.1f;
-        ClearColor.B = 0.15f;
-        ClearColor.A = 1.0f;
+        YaoClearColor ClearColor;
+        ClearColor.m_R = 0.1f;
+        ClearColor.m_G = 0.1f;
+        ClearColor.m_B = 0.15f;
+        ClearColor.m_A = 1.0f;
         RHI.Clear(ClearColor);
 
         // 设置视口
-        FViewport Viewport;
-        Viewport.Width  = 800;
-        Viewport.Height = 600;
+        YaoViewport Viewport;
+        Viewport.m_Width  = 800;
+        Viewport.m_Height = 600;
         RHI.SetViewport(Viewport);
 
         // 绑定着色器并设置投影矩阵
@@ -179,7 +180,6 @@ int main()
     VertexBuffer.Reset();
     IndexBuffer.Reset();
 
-    // RHI 析构时自动清理 VAO
     XI_LOG("Phase 0 verification complete. 羲引擎正常退出。");
 
     OpenGLPlatform_DestroyWindow(hWnd, hDC, glContext);

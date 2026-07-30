@@ -1,332 +1,349 @@
-// TSharedPtr.h — 羲引擎引用计数智能指针
-// 仿 UE TSharedPtr / TSharedRef / TWeakPtr，非侵入式引用计数
+// YaoSharedPtr — 羲引擎引用计数智能指针（Yao 层 / 羲爻）
+// 非侵入式引用计数，包含 YaoSharedPtr / YaoSharedRef / YaoWeakPtr
 #pragma once
 
 #include "CoreTypes.h"
-#include <utility>     // std::move, std::forward
-#include <type_traits> // std::enable_if_t, std::is_base_of_v
+#include <utility>      // std::move, std::forward
+#include <type_traits>  // std::enable_if_t, std::is_base_of_v
 
-/// @brief 引用计数控制块（内部使用）
-struct FReferenceControllerBase
+namespace Xi::Yao
 {
-    int32 SharedRefCount = 0;  // 共享引用计数
-    int32 WeakRefCount   = 0;  // 弱引用计数
 
-    virtual ~FReferenceControllerBase() = default;
-    virtual void DestroyObject() = 0;   // 销毁被引用对象
+/// @brief 引用计数控制块基类（内部使用，不直接暴露）
+struct YaoRefControllerBase
+{
+    int32 m_SharedRefCount = 0;  // 共享引用计数
+    int32 m_WeakRefCount   = 0;  // 弱引用计数
+
+    virtual ~YaoRefControllerBase() = default;
+    virtual void DestroyObject() = 0;  // 销毁被引用对象
 };
 
-/// @brief 控制块实现（内嵌对象实例）
+/// @brief 引用计数控制块实现（内嵌对象实例）
 template<typename T>
-struct TReferenceController : public FReferenceControllerBase
+struct YaoRefController : public YaoRefControllerBase
 {
-    T Instance;  // 对象实例直接存储于控制块中
+    T m_Instance;  // 对象实例直接存储于控制块中
 
     template<typename... Args>
-    TReferenceController(Args&&... args)
-        : Instance(std::forward<Args>(args)...)
+    YaoRefController(Args&&... args)
+        : m_Instance(std::forward<Args>(args)...)
     {
     }
 
     virtual void DestroyObject() override
     {
-        Instance.~T();  // 手动析构（控制块仍存活以服务弱引用）
+        m_Instance.~T();  // 手动析构（控制块仍存活以服务弱引用）
     }
 };
 
 // ── 前向声明 ────────────────────────────────────
-template<typename T> class TSharedPtr;
-template<typename T> class TWeakPtr;
+template<typename T> class YaoSharedPtr;
+template<typename T> class YaoWeakPtr;
 
-/// @brief 创建 TSharedPtr 的工厂函数（仿 UE MakeShareable）
+/// @brief 创建 YaoSharedPtr 的工厂函数（仿 UE MakeShareable）
 template<typename T, typename... Args>
-TSharedPtr<T> MakeShared(Args&&... args)
+YaoSharedPtr<T> YaoMakeShared(Args&&... args)
 {
-    auto* Controller = new TReferenceController<T>(std::forward<Args>(args)...);
-    Controller->SharedRefCount = 1;
+    auto* Controller = new YaoRefController<T>(std::forward<Args>(args)...);
+    Controller->m_SharedRefCount = 1;
 
-    TSharedPtr<T> Result;
-    Result.Object        = &Controller->Instance;
-    Result.RefController = Controller;
+    YaoSharedPtr<T> Result;
+    Result.m_Object        = &Controller->m_Instance;
+    Result.m_RefController = Controller;
     return Result;
 }
 
 /// @brief 共享指针（仿 UE TSharedPtr）
 template<typename T>
-class TSharedPtr
+class YaoSharedPtr
 {
-    friend class TWeakPtr<T>;
-    template<typename U> friend class TSharedPtr;  // 允许派生类到基类的转换访问私有成员
+    friend class YaoWeakPtr<T>;
+    template<typename U> friend class YaoSharedPtr;  // 允许派生类到基类的转换
     template<typename U, typename... Args>
-    friend TSharedPtr<U> MakeShared(Args&&...);
+    friend YaoSharedPtr<U> YaoMakeShared(Args&&...);
 
 public:
     // ── 构造 ─────────────────────────────────────
-    TSharedPtr() = default;
+    /// @brief 默认构造（空指针）
+    YaoSharedPtr() = default;
 
     /// @brief 从 nullptr 构造（空指针）
-    TSharedPtr(std::nullptr_t) : TSharedPtr() {}
+    YaoSharedPtr(std::nullptr_t) : YaoSharedPtr() {}
 
-    /// @brief 从派生类 TSharedPtr 隐式转换（如 TSharedPtr<FOpenGLBuffer> → TSharedPtr<IRHIBuffer>）
+    /// @brief 从派生类 YaoSharedPtr 隐式转换（如 YaoSharedPtr<YaoOpenGLBuffer> → YaoSharedPtr<YaoRHIBuffer>）
     template<typename Derived, typename = std::enable_if_t<std::is_base_of_v<T, Derived>>>
-    TSharedPtr(const TSharedPtr<Derived>& Other)
-        : Object(Other.Object), RefController(Other.RefController)
+    YaoSharedPtr(const YaoSharedPtr<Derived>& Other)
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
         AddSharedRef();
     }
 
-    /// @brief 从派生类 TSharedPtr 移动转换
+    /// @brief 从派生类 YaoSharedPtr 移动转换
     template<typename Derived, typename = std::enable_if_t<std::is_base_of_v<T, Derived>>>
-    TSharedPtr(TSharedPtr<Derived>&& Other) noexcept
-        : Object(Other.Object), RefController(Other.RefController)
+    YaoSharedPtr(YaoSharedPtr<Derived>&& Other) noexcept
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
-        Other.Object        = nullptr;
-        Other.RefController = nullptr;
+        Other.m_Object        = nullptr;
+        Other.m_RefController = nullptr;
     }
 
-    TSharedPtr(const TSharedPtr& Other)
-        : Object(Other.Object), RefController(Other.RefController)
+    /// @brief 拷贝构造（增加引用计数）
+    YaoSharedPtr(const YaoSharedPtr& Other)
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
         AddSharedRef();
     }
 
-    TSharedPtr(TSharedPtr&& Other) noexcept
-        : Object(Other.Object), RefController(Other.RefController)
+    /// @brief 移动构造（转移所有权）
+    YaoSharedPtr(YaoSharedPtr&& Other) noexcept
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
-        Other.Object        = nullptr;
-        Other.RefController = nullptr;
+        Other.m_Object        = nullptr;
+        Other.m_RefController = nullptr;
     }
 
-    ~TSharedPtr()
+    /// @brief 析构（减少引用计数，归零时销毁）
+    ~YaoSharedPtr()
     {
         ReleaseSharedRef();
     }
 
     // ── 赋值 ─────────────────────────────────────
-    TSharedPtr& operator=(const TSharedPtr& Other)
+    YaoSharedPtr& operator=(const YaoSharedPtr& Other)
     {
         if (this != &Other)
         {
             ReleaseSharedRef();
-            Object        = Other.Object;
-            RefController = Other.RefController;
+            m_Object        = Other.m_Object;
+            m_RefController = Other.m_RefController;
             AddSharedRef();
         }
         return *this;
     }
 
-    TSharedPtr& operator=(TSharedPtr&& Other) noexcept
+    YaoSharedPtr& operator=(YaoSharedPtr&& Other) noexcept
     {
         if (this != &Other)
         {
             ReleaseSharedRef();
-            Object        = Other.Object;
-            RefController = Other.RefController;
-            Other.Object        = nullptr;
-            Other.RefController = nullptr;
+            m_Object        = Other.m_Object;
+            m_RefController = Other.m_RefController;
+            Other.m_Object        = nullptr;
+            Other.m_RefController = nullptr;
         }
         return *this;
     }
 
     // ── 指针操作 ─────────────────────────────────
-    T*  Get()        const { return Object; }
-    T*  operator->() const { xiCheck(IsValid()); return Object; }
-    T&  operator*()  const { xiCheck(IsValid()); return *Object; }
+    T*  Get()        const { return m_Object; }
+    T*  operator->() const { xiCheck(IsValid()); return m_Object; }
+    T&  operator*()  const { xiCheck(IsValid()); return *m_Object; }
 
-    bool IsValid()   const { return Object != nullptr; }
+    /// @brief 是否有效（非空）
+    bool IsValid()   const { return m_Object != nullptr; }
     explicit operator bool() const { return IsValid(); }
 
+    /// @brief 当前共享引用计数
     int32 GetSharedReferenceCount() const
     {
-        return RefController ? RefController->SharedRefCount : 0;
+        return m_RefController ? m_RefController->m_SharedRefCount : 0;
     }
 
+    /// @brief 是否唯一持有对象
     bool IsUnique() const { return GetSharedReferenceCount() == 1; }
 
+    /// @brief 重置为空
     void Reset()
     {
         ReleaseSharedRef();
-        Object        = nullptr;
-        RefController = nullptr;
+        m_Object        = nullptr;
+        m_RefController = nullptr;
     }
 
 private:
+    /// @brief 增加共享引用计数
     void AddSharedRef()
     {
-        if (RefController) ++RefController->SharedRefCount;
+        if (m_RefController) ++m_RefController->m_SharedRefCount;
     }
 
+    /// @brief 减少共享引用计数，归零时销毁对象和控制块
     void ReleaseSharedRef()
     {
-        if (RefController)
+        if (m_RefController)
         {
-            --RefController->SharedRefCount;
-            if (RefController->SharedRefCount == 0)
+            --m_RefController->m_SharedRefCount;
+            if (m_RefController->m_SharedRefCount == 0)
             {
-                RefController->DestroyObject();
+                m_RefController->DestroyObject();
                 // 没有弱引用时连控制块一起释放
-                if (RefController->WeakRefCount == 0)
+                if (m_RefController->m_WeakRefCount == 0)
                 {
-                    delete RefController;
+                    delete m_RefController;
                 }
             }
         }
     }
 
-    T*                        Object        = nullptr;
-    FReferenceControllerBase* RefController = nullptr;
+    // ── 成员变量 ─────────────────────────────────
+    T*                      m_Object        = nullptr;  // 被引用的对象指针
+    YaoRefControllerBase*   m_RefController = nullptr;  // 引用计数控制块
 };
 
 /// @brief 共享引用 — 非空共享指针（仿 UE TSharedRef）
 template<typename T>
-class TSharedRef
+class YaoSharedRef
 {
 public:
     /// @brief 从可变参数原地构造对象
     template<typename... Args>
-    static TSharedRef<T> Create(Args&&... args)
+    static YaoSharedRef<T> Create(Args&&... args)
     {
-        TSharedRef<T> Result;
-        auto* Controller = new TReferenceController<T>(std::forward<Args>(args)...);
-        Controller->SharedRefCount = 1;
-        Result.Object        = &Controller->Instance;
-        Result.RefController = Controller;
+        YaoSharedRef<T> Result;
+        auto* Controller = new YaoRefController<T>(std::forward<Args>(args)...);
+        Controller->m_SharedRefCount = 1;
+        Result.m_Object        = &Controller->m_Instance;
+        Result.m_RefController = Controller;
         return Result;
     }
 
-    TSharedRef(const TSharedRef& Other)
-        : Object(Other.Object), RefController(Other.RefController)
+    YaoSharedRef(const YaoSharedRef& Other)
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
         AddSharedRef();
     }
 
-    TSharedRef(TSharedRef&& Other) noexcept
-        : Object(Other.Object), RefController(Other.RefController)
+    YaoSharedRef(YaoSharedRef&& Other) noexcept
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
-        Other.Object        = nullptr;
-        Other.RefController = nullptr;
+        Other.m_Object        = nullptr;
+        Other.m_RefController = nullptr;
     }
 
-    ~TSharedRef() { ReleaseSharedRef(); }
+    ~YaoSharedRef() { ReleaseSharedRef(); }
 
-    TSharedRef& operator=(const TSharedRef& Other)
+    YaoSharedRef& operator=(const YaoSharedRef& Other)
     {
         if (this != &Other)
         {
             ReleaseSharedRef();
-            Object        = Other.Object;
-            RefController = Other.RefController;
+            m_Object        = Other.m_Object;
+            m_RefController = Other.m_RefController;
             AddSharedRef();
         }
         return *this;
     }
 
-    T*  Get()        const { return Object; }
-    T*  operator->() const { return Object; }
-    T&  operator*()  const { return *Object; }
+    T*  Get()        const { return m_Object; }
+    T*  operator->() const { return m_Object; }
+    T&  operator*()  const { return *m_Object; }
 
     int32 GetSharedReferenceCount() const
     {
-        return RefController ? RefController->SharedRefCount : 0;
+        return m_RefController ? m_RefController->m_SharedRefCount : 0;
     }
 
 private:
-    TSharedRef() = default;
+    YaoSharedRef() = default;
 
     void AddSharedRef()
     {
-        if (RefController) ++RefController->SharedRefCount;
+        if (m_RefController) ++m_RefController->m_SharedRefCount;
     }
 
     void ReleaseSharedRef()
     {
-        if (RefController)
+        if (m_RefController)
         {
-            --RefController->SharedRefCount;
-            if (RefController->SharedRefCount == 0)
+            --m_RefController->m_SharedRefCount;
+            if (m_RefController->m_SharedRefCount == 0)
             {
-                RefController->DestroyObject();
-                if (RefController->WeakRefCount == 0)
+                m_RefController->DestroyObject();
+                if (m_RefController->m_WeakRefCount == 0)
                 {
-                    delete RefController;
+                    delete m_RefController;
                 }
             }
         }
     }
 
-    T*                        Object        = nullptr;
-    FReferenceControllerBase* RefController = nullptr;
+    T*                      m_Object        = nullptr;
+    YaoRefControllerBase*   m_RefController = nullptr;
 };
 
 /// @brief 弱指针 — 不增加共享引用的观察者（仿 UE TWeakPtr）
 template<typename T>
-class TWeakPtr
+class YaoWeakPtr
 {
 public:
-    TWeakPtr() = default;
+    YaoWeakPtr() = default;
 
-    TWeakPtr(const TSharedPtr<T>& SharedPtr)
-        : Object(SharedPtr.Object), RefController(SharedPtr.RefController)
+    YaoWeakPtr(const YaoSharedPtr<T>& SharedPtr)
+        : m_Object(SharedPtr.m_Object), m_RefController(SharedPtr.m_RefController)
     {
         AddWeakRef();
     }
 
-    TWeakPtr(const TWeakPtr& Other)
-        : Object(Other.Object), RefController(Other.RefController)
+    YaoWeakPtr(const YaoWeakPtr& Other)
+        : m_Object(Other.m_Object), m_RefController(Other.m_RefController)
     {
         AddWeakRef();
     }
 
-    ~TWeakPtr() { ReleaseWeakRef(); }
+    ~YaoWeakPtr() { ReleaseWeakRef(); }
 
-    TWeakPtr& operator=(const TWeakPtr& Other)
+    YaoWeakPtr& operator=(const YaoWeakPtr& Other)
     {
         if (this != &Other)
         {
             ReleaseWeakRef();
-            Object        = Other.Object;
-            RefController = Other.RefController;
+            m_Object        = Other.m_Object;
+            m_RefController = Other.m_RefController;
             AddWeakRef();
         }
         return *this;
     }
 
     /// @brief 提升为共享指针（若对象仍存活）
-    TSharedPtr<T> Pin() const
+    YaoSharedPtr<T> Pin() const
     {
-        TSharedPtr<T> Result;
-        if (RefController && RefController->SharedRefCount > 0)
+        YaoSharedPtr<T> Result;
+        if (m_RefController && m_RefController->m_SharedRefCount > 0)
         {
-            Result.Object        = Object;
-            Result.RefController = RefController;
-            ++RefController->SharedRefCount;  // Result 析构时会减掉
+            Result.m_Object        = m_Object;
+            Result.m_RefController = m_RefController;
+            ++m_RefController->m_SharedRefCount;
         }
         return Result;
     }
 
+    /// @brief 对象是否已销毁
     bool IsExpired() const
     {
-        return !RefController || RefController->SharedRefCount == 0;
+        return !m_RefController || m_RefController->m_SharedRefCount == 0;
     }
 
 private:
     void AddWeakRef()
     {
-        if (RefController) ++RefController->WeakRefCount;
+        if (m_RefController) ++m_RefController->m_WeakRefCount;
     }
 
     void ReleaseWeakRef()
     {
-        if (RefController)
+        if (m_RefController)
         {
-            --RefController->WeakRefCount;
-            if (RefController->SharedRefCount == 0 && RefController->WeakRefCount == 0)
+            --m_RefController->m_WeakRefCount;
+            if (m_RefController->m_SharedRefCount == 0 && m_RefController->m_WeakRefCount == 0)
             {
-                delete RefController;
+                delete m_RefController;
             }
         }
     }
 
-    T*                        Object        = nullptr;
-    FReferenceControllerBase* RefController = nullptr;
+    T*                      m_Object        = nullptr;
+    YaoRefControllerBase*   m_RefController = nullptr;
 };
+
+} // namespace Xi::Yao

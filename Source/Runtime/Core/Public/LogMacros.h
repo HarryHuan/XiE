@@ -1,4 +1,4 @@
-// LogMacros.h — 羲引擎日志系统
+// LogMacros.h — 羲引擎日志系统（Yao 层 / 羲爻）
 // 仿 UE UE_LOG 宏，提供分类、等级的日志输出
 #pragma once
 
@@ -8,8 +8,11 @@
 #include <cstdarg>     // va_list
 #include <ctime>       // time_t, localtime
 
+namespace Xi::Yao
+{
+
 /// @brief 日志详细等级（仿 UE ELogVerbosity）
-enum class ELogVerbosity : uint8
+enum class YaoLogVerbosity : uint8
 {
     Fatal,      // 致命错误，程序将终止
     Error,      // 错误
@@ -20,13 +23,13 @@ enum class ELogVerbosity : uint8
 
 /// @brief 日志分类基类（仿 UE FLogCategoryBase）
 /// 每个分类是一个编译期常量，用宏定义
-struct FLogCategoryBase
+struct YaoLogCategory
 {
-    const char* CategoryName;
-    ELogVerbosity DefaultVerbosity;
+    const char*      m_CategoryName;
+    YaoLogVerbosity  m_DefaultVerbosity;
 
-    FLogCategoryBase(const char* InName, ELogVerbosity InVerbosity)
-        : CategoryName(InName), DefaultVerbosity(InVerbosity)
+    YaoLogCategory(const char* InName, YaoLogVerbosity InVerbosity)
+        : m_CategoryName(InName), m_DefaultVerbosity(InVerbosity)
     {
     }
 };
@@ -36,7 +39,7 @@ struct FLogCategoryBase
 /// @brief 核心日志函数 — 格式化并输出一条日志
 inline void XiLogInternal(
     const char* Category,
-    ELogVerbosity Verbosity,
+    YaoLogVerbosity Verbosity,
     const char* File,
     int32 Line,
     const char* Format,
@@ -51,15 +54,15 @@ inline void XiLogInternal(
     const char* VerbosityStr = "LOG";
     switch (Verbosity)
     {
-        case ELogVerbosity::Fatal:   VerbosityStr = "FATAL";   break;
-        case ELogVerbosity::Error:   VerbosityStr = "ERROR";   break;
-        case ELogVerbosity::Warning: VerbosityStr = "WARNING"; break;
-        case ELogVerbosity::Verbose: VerbosityStr = "VERBOSE"; break;
-        default:                     VerbosityStr = "LOG";     break;
+        case YaoLogVerbosity::Fatal:   VerbosityStr = "FATAL";   break;
+        case YaoLogVerbosity::Error:   VerbosityStr = "ERROR";   break;
+        case YaoLogVerbosity::Warning: VerbosityStr = "WARNING"; break;
+        case YaoLogVerbosity::Verbose: VerbosityStr = "VERBOSE"; break;
+        default:                       VerbosityStr = "LOG";     break;
     }
 
     // 打印日志头：[时间] [等级] [分类] 文件:行号
-    FILE* Out = (Verbosity <= ELogVerbosity::Error) ? stderr : stdout;
+    FILE* Out = (Verbosity <= YaoLogVerbosity::Error) ? stderr : stdout;
     fprintf(Out, "[%02d:%02d:%02d] [%s] [%s] %s:%d: ",
         TimeInfo.tm_hour, TimeInfo.tm_min, TimeInfo.tm_sec,
         VerbosityStr, Category, File, Line);
@@ -74,31 +77,33 @@ inline void XiLogInternal(
     fflush(Out);
 
     // Fatal 级别终止程序
-    if (Verbosity == ELogVerbosity::Fatal)
+    if (Verbosity == YaoLogVerbosity::Fatal)
     {
         abort();
     }
 }
 
-// ── UE_LOG 宏 ───────────────────────────────────
+} // namespace Xi::Yao
+
+// ── UE_LOG 宏（必须在命名空间外部，供全局使用） ──
 
 /// @brief 声明一个日志分类（放在头文件中）
 /// 用法：DECLARE_LOG_CATEGORY(LogTemp, Log);
 #define DECLARE_LOG_CATEGORY(CategoryName, DefaultVerbosity) \
-    extern FLogCategoryBase CategoryName
+    extern Xi::Yao::YaoLogCategory CategoryName
 
 /// @brief 定义一个日志分类（放在一个 .cpp 文件中）
 /// 用法：DEFINE_LOG_CATEGORY(LogTemp, Log);
 #define DEFINE_LOG_CATEGORY(CategoryName, DefaultVerbosity) \
-    FLogCategoryBase CategoryName(#CategoryName, ELogVerbosity::DefaultVerbosity)
+    Xi::Yao::YaoLogCategory CategoryName(#CategoryName, Xi::Yao::YaoLogVerbosity::DefaultVerbosity)
 
 /// @brief 输出日志的主宏
 /// 用法：UE_LOG(LogTemp, Log, "Value = %d", 42);
 #define UE_LOG(Category, Verbosity, Format, ...) \
     do { \
-        XiLogInternal( \
-            Category.CategoryName, \
-            ELogVerbosity::Verbosity, \
+        Xi::Yao::XiLogInternal( \
+            Category.m_CategoryName, \
+            Xi::Yao::YaoLogVerbosity::Verbosity, \
             __FILE__, \
             __LINE__, \
             Format, \
@@ -108,13 +113,13 @@ inline void XiLogInternal(
 
 /// @brief 简洁日志宏（自动使用 Log 等级和 LogTemp 分类）
 #define XI_LOG(Format, ...) \
-    XiLogInternal("LogTemp", ELogVerbosity::Log, __FILE__, __LINE__, Format, ##__VA_ARGS__)
+    Xi::Yao::XiLogInternal("LogTemp", Xi::Yao::YaoLogVerbosity::Log, __FILE__, __LINE__, Format, ##__VA_ARGS__)
 
 #define XI_LOG_WARNING(Format, ...) \
-    XiLogInternal("LogTemp", ELogVerbosity::Warning, __FILE__, __LINE__, Format, ##__VA_ARGS__)
+    Xi::Yao::XiLogInternal("LogTemp", Xi::Yao::YaoLogVerbosity::Warning, __FILE__, __LINE__, Format, ##__VA_ARGS__)
 
 #define XI_LOG_ERROR(Format, ...) \
-    XiLogInternal("LogTemp", ELogVerbosity::Error, __FILE__, __LINE__, Format, ##__VA_ARGS__)
+    Xi::Yao::XiLogInternal("LogTemp", Xi::Yao::YaoLogVerbosity::Error, __FILE__, __LINE__, Format, ##__VA_ARGS__)
 
 // ── 条件检查宏 ──────────────────────────────────
 
@@ -122,7 +127,7 @@ inline void XiLogInternal(
 #define xiCheckMsg(Expr, Format, ...) \
     do { \
         if (!(Expr)) { \
-            XiLogInternal("Assert", ELogVerbosity::Fatal, __FILE__, __LINE__, \
+            Xi::Yao::XiLogInternal("Assert", Xi::Yao::YaoLogVerbosity::Fatal, __FILE__, __LINE__, \
                 "Assertion failed: " #Expr " — " Format, ##__VA_ARGS__); \
         } \
     } while(0)
