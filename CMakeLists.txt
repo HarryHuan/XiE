@@ -27,6 +27,7 @@ include_directories(${CMAKE_SOURCE_DIR}/Source)
 # ── 运行时模块 ──────────────────────────────────
 add_subdirectory(Source/Runtime/Core)
 add_subdirectory(Source/Runtime/RHI)
+add_subdirectory(Source/Runtime/SlateCore)
 
 # ── 验证程序（阶段 0：三角形绘制） ──────────────
 add_subdirectory(Programs/Testbed)

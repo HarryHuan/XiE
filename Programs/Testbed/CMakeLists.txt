@@ -8,6 +8,7 @@ target_sources(XiETestbed PRIVATE
 target_link_libraries(XiETestbed PRIVATE
     XiECore
     XiERHI
+    XiESlateCore
 )
 
 target_compile_features(XiETestbed PRIVATE cxx_std_20)
