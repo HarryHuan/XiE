@@ -1,7 +1,7 @@
 // Testbed Main.cpp — 阶段 1 验证：Slate UI → RHI → OpenGL 绘制
 #include "Core.h"
-#include "OpenGLRHI.h"
-#include "SlateCore.h"
+#include "YaoOpenGLRHI.h"
+#include "YanSlateCore.h"
 #include "LogMacros.h"
 
 using namespace Xi::Yao;

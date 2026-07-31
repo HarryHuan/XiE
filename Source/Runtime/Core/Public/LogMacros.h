@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "FString.h"
+#include "YaoString.h"
 #include <cstdio>      // vfprintf, stdout, stderr
 #include <cstdarg>     // va_list
 #include <ctime>       // time_t, localtime

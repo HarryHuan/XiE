@@ -1,6 +1,6 @@
 // OpenGLRHI.cpp — OpenGL RHI 后端实现（Yao 层 / 羲爻）
 // Win32 窗口创建 + wgl OpenGL 上下文 + YaoRHI 接口的 OpenGL 实现
-#include "OpenGLRHI.h"
+#include "YaoOpenGLRHI.h"
 #include "LogMacros.h"
 
 // Windows 头（需要放在最前面以定义 HWND/HDC/HGLRC）

@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "TArray.h"
-#include "TMap.h"
-#include "TSharedPtr.h"
-#include "FString.h"
-#include "FName.h"
+#include "YaoArray.h"
+#include "YaoMap.h"
+#include "YaoSharedPtr.h"
+#include "YaoString.h"
+#include "YaoName.h"
 #include "LogMacros.h"

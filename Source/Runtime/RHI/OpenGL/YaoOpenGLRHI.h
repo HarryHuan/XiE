@@ -2,9 +2,9 @@
 // 实现 YaoRHIDevice / YaoRHIBuffer / YaoRHIShader 的 OpenGL 版本
 #pragma once
 
-#include "RHIDevice.h"
+#include "YaoRHIDevice.h"
 #include "CoreTypes.h"
-#include "TArray.h"
+#include "YaoArray.h"
 
 namespace Xi::Yao
 {

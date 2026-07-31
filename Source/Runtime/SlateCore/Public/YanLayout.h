@@ -2,7 +2,7 @@
 // YanVerticalBox / YanHorizontalBox / YanOverlay / YanBorder
 #pragma once
 
-#include "SPanel.h"
+#include "YanPanel.h"
 
 namespace Xi::Yan
 {

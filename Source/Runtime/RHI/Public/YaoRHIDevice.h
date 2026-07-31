@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "TSharedPtr.h"
-#include "TArray.h"
+#include "YaoSharedPtr.h"
+#include "YaoArray.h"
 #include "RHITypes.h"
 
 namespace Xi::Yao

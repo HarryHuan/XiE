@@ -2,7 +2,7 @@
 // 提供 SNew / SAssignNew 宏，简化控件创建
 #pragma once
 
-#include "TSharedPtr.h"
+#include "YaoSharedPtr.h"
 
 using namespace Xi::Yao;
 

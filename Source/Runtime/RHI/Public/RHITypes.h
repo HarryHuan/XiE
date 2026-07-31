@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "FString.h"
+#include "YaoString.h"
 
 namespace Xi::Yao
 {

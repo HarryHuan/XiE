@@ -3,7 +3,7 @@ add_library(XiERHI STATIC)
 
 # ── 源文件 ──────────────────────────────────────
 target_sources(XiERHI PRIVATE
-    OpenGL/OpenGLRHI.cpp
+    OpenGL/YaoOpenGLRHI.cpp
 )
 
 # ── 公开头文件 ──────────────────────────────────

@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "FString.h"
-#include "TMap.h"
-#include "TArray.h"
+#include "YaoString.h"
+#include "YaoMap.h"
+#include "YaoArray.h"
 
 namespace Xi::Yao
 {

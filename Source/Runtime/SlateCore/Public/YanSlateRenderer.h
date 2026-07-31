@@ -2,13 +2,13 @@
 // 将 YanDrawElementList 转换为 RHI 顶点/索引缓冲区并提交绘制
 #pragma once
 
-#include "SWidget.h"
-#include "SlateTypes.h"
-#include "TSharedPtr.h"
-#include "TArray.h"
+#include "YanWidget.h"
+#include "YanSlateTypes.h"
+#include "YaoSharedPtr.h"
+#include "YaoArray.h"
 
 // RHI 依赖
-#include "RHIDevice.h"
+#include "YaoRHIDevice.h"
 
 namespace Xi::Yan
 {

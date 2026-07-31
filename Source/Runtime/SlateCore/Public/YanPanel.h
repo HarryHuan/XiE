@@ -2,10 +2,10 @@
 // YanPanel 为多子控件容器基类，YanCompoundWidget 为单子控件基类
 #pragma once
 
-#include "SWidget.h"
-#include "SlateTypes.h"
-#include "TSharedPtr.h"
-#include "TArray.h"
+#include "YanWidget.h"
+#include "YanSlateTypes.h"
+#include "YaoSharedPtr.h"
+#include "YaoArray.h"
 
 using namespace Xi::Yao;
 

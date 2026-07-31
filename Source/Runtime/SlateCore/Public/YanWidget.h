@@ -2,8 +2,8 @@
 // 所有 UI 控件的根节点，提供几何、可见性、绘制接口
 #pragma once
 
-#include "SlateTypes.h"
-#include "TArray.h"
+#include "YanSlateTypes.h"
+#include "YaoArray.h"
 
 using namespace Xi::Yao;
 
