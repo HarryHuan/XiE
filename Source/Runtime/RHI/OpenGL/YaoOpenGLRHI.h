@@ -126,6 +126,9 @@ void OpenGLPlatform_DestroyWindow(void* InHwnd, void* InHDC, void* InGLContext);
 /// @brief 处理 Windows 消息泵（返回 false 表示窗口已关闭）
 bool OpenGLPlatform_PumpMessages();
 
+/// @brief 获取窗口客户区大小（响应 WM_SIZE 后的实际尺寸）
+void OpenGLPlatform_GetWindowSize(void* InHwnd, int32& OutWidth, int32& OutHeight);
+
 // ── OpenGL RHI 实现类 ──────────────────────────
 
 /// @brief OpenGL 顶点/索引缓冲区实现

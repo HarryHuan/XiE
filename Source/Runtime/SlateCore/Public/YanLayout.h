@@ -1,4 +1,4 @@
-// SLayout.h — Slate 布局控件（Yan 层 / 羲砚）
+// YanLayout — Slate 布局控件（Yan 层 / 羲砚）
 // YanVerticalBox / YanHorizontalBox / YanOverlay / YanBorder
 #pragma once
 
@@ -14,26 +14,52 @@ namespace Xi::Yan
 /// @brief 垂直布局控件（仿 UE SVerticalBox）
 class YanVerticalBox : public YanPanel
 {
-public:
-    virtual YanVec2 GetDesiredSize() const override
+protected:
+    virtual YanVec2 ComputeDesiredSize() const override
     {
-        float MaxWidth  = 0.0f;
+        float MaxWidth   = 0.0f;
         float TotalHeight = 0.0f;
         for (int32 i = 0; i < m_Slots.Num(); ++i)
         {
             if (!m_Slots[i].m_Child.IsValid()) continue;
             YanVec2 ChildSize = m_Slots[i].m_Child->GetDesiredSize();
-            float PadH = m_Slots[i].m_Padding.GetHorizontalTotal();
-            float PadV = m_Slots[i].m_Padding.GetVerticalTotal();
-            float W = ChildSize.m_X + PadH;
-            TotalHeight += ChildSize.m_Y + PadV;
+            TotalHeight += ChildSize.m_Y + m_Slots[i].m_Padding.GetVerticalTotal();
+            float W = ChildSize.m_X + m_Slots[i].m_Padding.GetHorizontalTotal();
             if (W > MaxWidth) MaxWidth = W;
         }
         return { MaxWidth, TotalHeight };
     }
 
+public:
     virtual void ArrangeChildren(const YanGeometry& AllottedGeometry) override
     {
+        // 第一遍：计算固定/自动高度槽位消耗的总高度（含 padding）
+        float UsedHeight = 0.0f;
+        int32 FillCount  = 0;
+        for (int32 i = 0; i < m_Slots.Num(); ++i)
+        {
+            const YanSlot& Slot = m_Slots[i];
+            if (!Slot.m_Child.IsValid()) continue;
+            if (Slot.m_FixedHeight >= 0.0f)
+            {
+                UsedHeight += Slot.m_FixedHeight + Slot.m_Padding.GetVerticalTotal();
+            }
+            else if (Slot.m_bAutoHeight)
+            {
+                UsedHeight += Slot.m_Child->GetDesiredSize().m_Y + Slot.m_Padding.GetVerticalTotal();
+            }
+            else
+            {
+                ++FillCount;
+            }
+        }
+
+        // 剩余空间平分给 fill 槽位
+        float Remaining = AllottedGeometry.m_Size.m_Y - UsedHeight;
+        if (Remaining < 0.0f) Remaining = 0.0f;
+        float FillHeight = (FillCount > 0) ? Remaining / FillCount : 0.0f;
+
+        // 第二遍：逐槽位分配几何
         float YOffset = 0.0f;
         for (int32 i = 0; i < m_Slots.Num(); ++i)
         {
@@ -45,42 +71,34 @@ public:
             float PadH = Slot.m_Padding.GetHorizontalTotal();
             float PadV = Slot.m_Padding.GetVerticalTotal();
 
+            // 尺寸策略：固定高度 > 自动高度 > 平分剩余空间
             float ChildH;
-            if (Slot.m_bAutoHeight)
+            if (Slot.m_FixedHeight >= 0.0f)
+            {
+                ChildH = Slot.m_FixedHeight;
+            }
+            else if (Slot.m_bAutoHeight)
             {
                 ChildH = Slot.m_Child->GetDesiredSize().m_Y;
             }
             else
             {
-                ChildH = AllottedGeometry.m_Size.m_Y - YOffset - PadV;
+                ChildH = FillHeight - PadV;
                 if (ChildH < 0.0f) ChildH = 0.0f;
             }
 
             float ChildW = AllottedGeometry.m_Size.m_X - PadH;
             if (ChildW < 0.0f) ChildW = 0.0f;
 
-            YanGeometry ChildGeo = AllottedGeometry.MakeChild(
+            // 计算并存储子几何（OnPaint 使用）
+            Slot.m_ArrangedGeometry = AllottedGeometry.MakeChild(
                 { PadL, YOffset + PadT },
                 { ChildW, ChildH }
             );
-            Slot.m_Child->ArrangeChildren(ChildGeo);
+
+            Slot.m_Child->ArrangeChildren(Slot.m_ArrangedGeometry);
             YOffset += ChildH + PadV;
         }
-    }
-
-    virtual int32 OnPaint(
-        const YanGeometry& AllottedGeometry,
-        YanDrawElementList& OutDrawElements) const override
-    {
-        int32 MaxLayer = 0;
-        for (int32 i = 0; i < m_Slots.Num(); ++i)
-        {
-            const YanSlot& Slot = m_Slots[i];
-            if (!Slot.m_Child.IsValid() || !Slot.m_Child->IsVisible()) continue;
-            int32 Layer = Slot.m_Child->OnPaint(AllottedGeometry, OutDrawElements);
-            if (Layer > MaxLayer) MaxLayer = Layer;
-        }
-        return MaxLayer;
     }
 };
 
@@ -91,24 +109,23 @@ public:
 /// @brief 水平布局控件（仿 UE SHorizontalBox）
 class YanHorizontalBox : public YanPanel
 {
-public:
-    virtual YanVec2 GetDesiredSize() const override
+protected:
+    virtual YanVec2 ComputeDesiredSize() const override
     {
-        float TotalWidth  = 0.0f;
-        float MaxHeight = 0.0f;
+        float TotalWidth = 0.0f;
+        float MaxHeight  = 0.0f;
         for (int32 i = 0; i < m_Slots.Num(); ++i)
         {
             if (!m_Slots[i].m_Child.IsValid()) continue;
             YanVec2 ChildSize = m_Slots[i].m_Child->GetDesiredSize();
-            float PadH = m_Slots[i].m_Padding.GetHorizontalTotal();
-            float PadV = m_Slots[i].m_Padding.GetVerticalTotal();
-            TotalWidth += ChildSize.m_X + PadH;
-            float H = ChildSize.m_Y + PadV;
+            TotalWidth += ChildSize.m_X + m_Slots[i].m_Padding.GetHorizontalTotal();
+            float H = ChildSize.m_Y + m_Slots[i].m_Padding.GetVerticalTotal();
             if (H > MaxHeight) MaxHeight = H;
         }
         return { TotalWidth, MaxHeight };
     }
 
+public:
     virtual void ArrangeChildren(const YanGeometry& AllottedGeometry) override
     {
         float XOffset = 0.0f;
@@ -126,28 +143,14 @@ public:
             float ChildH = AllottedGeometry.m_Size.m_Y - PadV;
             if (ChildH < 0.0f) ChildH = 0.0f;
 
-            YanGeometry ChildGeo = AllottedGeometry.MakeChild(
+            Slot.m_ArrangedGeometry = AllottedGeometry.MakeChild(
                 { XOffset + PadL, PadT },
                 { ChildW, ChildH }
             );
-            Slot.m_Child->ArrangeChildren(ChildGeo);
+
+            Slot.m_Child->ArrangeChildren(Slot.m_ArrangedGeometry);
             XOffset += ChildW + PadH;
         }
-    }
-
-    virtual int32 OnPaint(
-        const YanGeometry& AllottedGeometry,
-        YanDrawElementList& OutDrawElements) const override
-    {
-        int32 MaxLayer = 0;
-        for (int32 i = 0; i < m_Slots.Num(); ++i)
-        {
-            const YanSlot& Slot = m_Slots[i];
-            if (!Slot.m_Child.IsValid() || !Slot.m_Child->IsVisible()) continue;
-            int32 Layer = Slot.m_Child->OnPaint(AllottedGeometry, OutDrawElements);
-            if (Layer > MaxLayer) MaxLayer = Layer;
-        }
-        return MaxLayer;
     }
 };
 
@@ -165,27 +168,14 @@ public:
         {
             YanSlot& Slot = m_Slots[i];
             if (!Slot.m_Child.IsValid()) continue;
-            YanGeometry ChildGeo = AllottedGeometry.MakeChild(
+
+            Slot.m_ArrangedGeometry = AllottedGeometry.MakeChild(
                 { Slot.m_Padding.m_Left, Slot.m_Padding.m_Top },
                 AllottedGeometry.m_Size
             );
-            Slot.m_Child->ArrangeChildren(ChildGeo);
-        }
-    }
 
-    virtual int32 OnPaint(
-        const YanGeometry& AllottedGeometry,
-        YanDrawElementList& OutDrawElements) const override
-    {
-        int32 MaxLayer = 0;
-        for (int32 i = 0; i < m_Slots.Num(); ++i)
-        {
-            const YanSlot& Slot = m_Slots[i];
-            if (!Slot.m_Child.IsValid() || !Slot.m_Child->IsVisible()) continue;
-            int32 Layer = Slot.m_Child->OnPaint(AllottedGeometry, OutDrawElements);
-            if (Layer > MaxLayer) MaxLayer = Layer;
+            Slot.m_Child->ArrangeChildren(Slot.m_ArrangedGeometry);
         }
-        return MaxLayer;
     }
 };
 
@@ -200,13 +190,24 @@ public:
     /// @brief 设置背景颜色
     void SetBackground(const YanColor& InColor) { m_Background = InColor; }
 
+    virtual void ArrangeChildren(const YanGeometry& AllottedGeometry) override
+    {
+        if (!m_Slot.m_Child.IsValid()) return;
+
+        m_Slot.m_ArrangedGeometry = AllottedGeometry.MakeChild(
+            { m_Slot.m_Padding.m_Left, m_Slot.m_Padding.m_Top },
+            AllottedGeometry.m_Size
+        );
+        m_Slot.m_Child->ArrangeChildren(m_Slot.m_ArrangedGeometry);
+    }
+
     virtual int32 OnPaint(
         const YanGeometry& AllottedGeometry,
         YanDrawElementList& OutDrawElements) const override
     {
         int32 LayerId = 0;
 
-        // 先绘制背景色块
+        // 先绘制背景色块（使用本控件的实际几何）
         OutDrawElements.AddBox(
             AllottedGeometry.m_Position,
             AllottedGeometry.m_Size,
@@ -214,14 +215,10 @@ public:
             LayerId
         );
 
-        // 再绘制子控件
+        // 再绘制子控件（使用布局计算出的子几何）
         if (m_Slot.m_Child.IsValid() && m_Slot.m_Child->IsVisible())
         {
-            YanGeometry ChildGeo = AllottedGeometry.MakeChild(
-                { m_Slot.m_Padding.m_Left, m_Slot.m_Padding.m_Top },
-                AllottedGeometry.m_Size
-            );
-            int32 ChildLayer = m_Slot.m_Child->OnPaint(ChildGeo, OutDrawElements);
+            int32 ChildLayer = m_Slot.m_Child->OnPaint(m_Slot.m_ArrangedGeometry, OutDrawElements);
             if (ChildLayer > LayerId) LayerId = ChildLayer;
         }
 

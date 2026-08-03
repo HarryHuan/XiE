@@ -55,19 +55,32 @@ int main()
 
     // 垂直布局
     auto VBox = SNew(YanVerticalBox);
-    VBox->AddSlot().AutoHeight()[TitleBar];
+    VBox->AddSlot().FixedHeight(60)[TitleBar];
     VBox->AddSlot()[ContentArea];
-    VBox->AddSlot().AutoHeight()[BottomBar];
+    VBox->AddSlot().FixedHeight(80)[BottomBar];
 
-    // 根容器（深灰背景）
+    // 根容器（深灰背景，VBox 直接贴满）
     auto RootBorder = SNew(YanBorder);
     RootBorder->SetBackground(YanColor(0.15f, 0.15f, 0.18f));  // 深灰
-    RootBorder->GetSlot().Padding(10)[VBox];
+    RootBorder->GetSlot()[VBox];
 
     // 4. 主循环
     XI_LOG("Entering main loop...");
     while (RHI.IsWindowOpen() && OpenGLPlatform_PumpMessages())
     {
+        // 查询窗口当前客户区尺寸（支持 resize）
+        int32 WinW = 800, WinH = 600;
+        OpenGLPlatform_GetWindowSize(hWnd, WinW, WinH);
+        if (WinW < 1) WinW = 1;
+        if (WinH < 1) WinH = 1;
+
+        // 同步 RHI 视口 + Slate 渲染器视口
+        YaoViewport VP;
+        VP.m_Width  = WinW;
+        VP.m_Height = WinH;
+        RHI.SetViewport(VP);
+        SlateRenderer.SetViewportSize(WinW, WinH);
+
         // 清屏
         YaoClearColor ClearColor;
         ClearColor.m_R = 0.1f;
@@ -76,16 +89,10 @@ int main()
         ClearColor.m_A = 1.0f;
         RHI.Clear(ClearColor);
 
-        // 视口
-        YaoViewport VP;
-        VP.m_Width  = 800;
-        VP.m_Height = 600;
-        RHI.SetViewport(VP);
-
         // ── Slate 渲染 ─────────────────────────
-        // 1. 构建绘制元素列表
+        // 1. 用当前窗口尺寸构建控件树几何（红色顶部/蓝色底部固定，绿色自适应）
         YanDrawElementList DrawList;
-        YanGeometry RootGeo({ 0.0f, 0.0f }, { 800.0f, 600.0f });
+        YanGeometry RootGeo({ 0.0f, 0.0f }, { static_cast<float>(WinW), static_cast<float>(WinH) });
         RootBorder->ArrangeChildren(RootGeo);
         RootBorder->OnPaint(RootGeo, DrawList);
 

@@ -30,6 +30,13 @@ public:
         m_Shader = InRHI->CreateShader(SlateVertexShader, SlatePixelShader);
     }
 
+    /// @brief 更新视口尺寸（窗口 resize 时调用，正交矩阵随之重建）
+    void SetViewportSize(int32 InWidth, int32 InHeight)
+    {
+        m_ViewWidth  = InWidth;
+        m_ViewHeight = InHeight;
+    }
+
     /// @brief 渲染一帧的绘制元素列表
     void Render(const YanDrawElementList& DrawElements)
     {
@@ -171,7 +178,7 @@ void main()
         Matrix[11] =  0.0f;
 
         Matrix[12] = -(R + L) / (R - L);
-        Matrix[13] = -(B + T) / (B - T);
+        Matrix[13] = -(T + B) / (T - B);   // Y 轴翻转后的平移项（T=0,B=600 → +1）
         Matrix[14] =  0.0f;
         Matrix[15] =  1.0f;
 

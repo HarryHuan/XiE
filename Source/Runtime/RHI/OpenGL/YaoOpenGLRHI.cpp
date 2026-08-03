@@ -267,6 +267,23 @@ bool OpenGLPlatform_PumpMessages()
     return true;
 }
 
+void OpenGLPlatform_GetWindowSize(void* InHwnd, int32& OutWidth, int32& OutHeight)
+{
+    HWND hWnd = (HWND)InHwnd;
+    if (!hWnd)
+    {
+        OutWidth  = 0;
+        OutHeight = 0;
+        return;
+    }
+
+    // 查询客户区实际尺寸（含窗口 resize 后的变化）
+    RECT ClientRect;
+    GetClientRect(hWnd, &ClientRect);
+    OutWidth  = ClientRect.right - ClientRect.left;
+    OutHeight = ClientRect.bottom - ClientRect.top;
+}
+
 // ═══════════════════════════════════════════════
 // YaoOpenGLBuffer — 实现 YaoRHIBuffer
 // ═══════════════════════════════════════════════
